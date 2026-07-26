@@ -1,0 +1,16 @@
+torch>=2.2
+numpy>=1.26
+matplotlib>=3.8
+plotly>=5.20
+typer>=0.12
+pydantic>=2.0
+python-dotenv>=1.0
+langchain-core>=0.2
+langchain-openai>=0.1
+langchain-community>=0.2
+langgraph>=0.1
+gradio>=4.44
+pytest>=7.4
+
+# Optional: only needed if you switch config.json's llm_backend to "ollama"
+# langchain-ollama>=0.1

@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Environment & secrets - VERY IMPORTANT
+.env
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE / Editor specific
+.idea/
+.vscode/
+
+# Pytest
+.pytest_cache/
+.coverage
+
+# Trained models / run artifacts (regenerable via the CLI, kept out of git)
+runs/
+*.pt
+*.pth
