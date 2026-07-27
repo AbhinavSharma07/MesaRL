@@ -22,12 +22,12 @@ import torch
 import viz_style
 from env.bandit_family import sample_batch
 from model.transformer_policy import TransformerPolicy, TransformerPolicyConfig
-from training.train_meta_rl import TrainingConfig, collect_rollout
+from training.train_meta_rl import TrainingConfig, collect_rollout, config_from_dict
 
 
 def load_checkpoint(path) -> tuple[TransformerPolicy, TrainingConfig]:
     checkpoint = torch.load(Path(path), map_location="cpu")
-    config = TrainingConfig(**checkpoint["config"])
+    config = config_from_dict(checkpoint["config"])
     model_config = TransformerPolicyConfig(
         num_arms=config.num_arms,
         max_trials=config.num_trials,
@@ -80,10 +80,23 @@ def summarize_regret(regret: np.ndarray, first_n: int = 10, last_n: int = 10) ->
     first = float(regret[:, :first_n].mean())
     last = float(regret[:, -last_n:].mean())
     improvement_ratio = (first - last) / first if first > 1e-8 else 0.0
+
+    mean_curve = regret.mean(axis=0)
+    best_trial = int(mean_curve.argmin())
+    best_regret = float(mean_curve[best_trial])
+
     return {
         "mean_regret_first_n": first,
         "mean_regret_last_n": last,
+        # first_n -> last_n understates adaptation whenever regret dips mid-
+        # episode and then rises again near the end (see README/PROJECT_DETAILS
+        # for the observed end-of-episode anomaly) -- best_trial_regret is the
+        # honest "how good did it get" number, first_n -> best_trial_regret the
+        # honest "how much did it actually improve" number.
+        "best_trial_index": best_trial,
+        "best_trial_regret": best_regret,
         "improvement_ratio": improvement_ratio,
+        "improvement_ratio_to_best": (first - best_regret) / first if first > 1e-8 else 0.0,
         "mean_cumulative_regret": float(regret.sum(axis=1).mean()),
     }
 

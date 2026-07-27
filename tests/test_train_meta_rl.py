@@ -9,7 +9,9 @@ from training.train_meta_rl import (
     build_policy,
     collect_rollout,
     compute_gae,
+    config_from_dict,
     ppo_update,
+    train,
 )
 
 TINY_CONFIG = TrainingConfig(
@@ -88,7 +90,7 @@ def test_ppo_update_changes_parameters_and_produces_finite_stats():
     )
 
     params_before = copy.deepcopy(list(policy.parameters()))
-    stats = ppo_update(policy, optimizer, rollout, advantages, returns, TINY_CONFIG)
+    stats = ppo_update(policy, optimizer, rollout, advantages, returns, TINY_CONFIG, entropy_coef=0.01)
 
     assert all(np.isfinite(v) for v in stats.values())
     params_after = list(policy.parameters())
@@ -97,6 +99,54 @@ def test_ppo_update_changes_parameters_and_produces_finite_stats():
         for before, after in zip(params_before, params_after)
     )
     assert changed
+
+
+def test_config_from_dict_ignores_unknown_and_fills_missing():
+    stale_dict = {
+        "num_arms": 7,
+        "num_trials": 50,
+        "entropy_coef": 0.01,  # renamed field from an older checkpoint format
+        "not_a_real_field": 123,
+    }
+    config = config_from_dict(stale_dict)
+    assert config.num_arms == 7
+    assert config.num_trials == 50
+    assert config.entropy_coef_start == TrainingConfig().entropy_coef_start  # fell back to default
+    assert not hasattr(config, "entropy_coef")
+    assert not hasattr(config, "not_a_real_field")
+
+
+def test_entropy_anneals_from_start_to_end_over_training(tmp_path):
+    config = TrainingConfig(
+        num_arms=3, num_trials=8, d_model=16, n_heads=2, n_layers=2, d_ff=32,
+        batch_size=4, minibatch_size=4, ppo_epochs=1, num_iterations=4,
+        entropy_coef_start=0.05, entropy_coef_end=0.0,
+    )
+    _, history = train(config, run_dir=tmp_path / "run", log_every=0)
+    entropy_coefs = [record["entropy_coef"] for record in history]
+    assert entropy_coefs[0] == 0.05
+    assert entropy_coefs[-1] == 0.0
+    assert entropy_coefs == sorted(entropy_coefs, reverse=True)
+
+
+def test_resume_continues_iteration_count_and_appends_history(tmp_path):
+    run_dir = tmp_path / "run"
+    base_config = TrainingConfig(
+        num_arms=3, num_trials=8, d_model=16, n_heads=2, n_layers=2, d_ff=32,
+        batch_size=4, minibatch_size=4, ppo_epochs=1, num_iterations=2, seed=0,
+    )
+    train(base_config, run_dir=run_dir, log_every=0)
+
+    resumed_config = TrainingConfig(
+        num_arms=3, num_trials=8, d_model=16, n_heads=2, n_layers=2, d_ff=32,
+        batch_size=4, minibatch_size=4, ppo_epochs=1, num_iterations=3, seed=1,
+    )
+    _, history = train(
+        resumed_config, run_dir=run_dir, log_every=0, resume_from=run_dir / "checkpoint.pt"
+    )
+
+    assert len(history) == 5  # 2 original + 3 additional
+    assert [record["iteration"] for record in history] == [0, 1, 2, 3, 4]
 
 
 def test_greedy_rollout_is_deterministic():

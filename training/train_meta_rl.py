@@ -16,7 +16,7 @@ one per timestep. Only *rollout collection* is inherently sequential (each
 action depends on the previous trial's observed reward).
 """
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, fields
 import json
 from pathlib import Path
 from typing import Optional
@@ -48,10 +48,26 @@ class TrainingConfig:
     gamma: float = 0.99
     gae_lambda: float = 0.95
     lr: float = 3e-4
-    entropy_coef: float = 0.01
+    # Linearly annealed over the course of this call's num_iterations, so the
+    # policy is pushed toward sharper exploitation later in training rather
+    # than staying diffusely stochastic for the whole run (see the "regime
+    # probe" experiment note in eval/adaptation.py results: a static entropy
+    # coefficient left entropy too high to show within-episode regret
+    # actually decreasing).
+    entropy_coef_start: float = 0.02
+    entropy_coef_end: float = 0.001
     value_coef: float = 0.5
     max_grad_norm: float = 0.5
     seed: int = 0
+
+
+def config_from_dict(d: dict) -> "TrainingConfig":
+    """Build a TrainingConfig from a possibly-stale saved dict, ignoring
+    unknown keys and falling back to defaults for missing ones -- lets
+    checkpoints saved before a TrainingConfig field was added/renamed still
+    load."""
+    known = {f.name for f in fields(TrainingConfig)}
+    return TrainingConfig(**{k: v for k, v in d.items() if k in known})
 
 
 @dataclass
@@ -143,6 +159,7 @@ def ppo_update(
     advantages: torch.Tensor,
     returns: torch.Tensor,
     config: TrainingConfig,
+    entropy_coef: float,
 ) -> dict:
     policy.train()
     B = rollout.hist_actions.shape[0]
@@ -166,7 +183,7 @@ def ppo_update(
             surr2 = torch.clamp(ratio, 1 - config.clip_eps, 1 + config.clip_eps) * mb_adv
             policy_loss = -torch.min(surr1, surr2).mean()
             value_loss = F.mse_loss(values, returns[idx])
-            loss = policy_loss + config.value_coef * value_loss - config.entropy_coef * entropy
+            loss = policy_loss + config.value_coef * value_loss - entropy_coef * entropy
 
             optimizer.zero_grad()
             loss.backward()
@@ -204,7 +221,14 @@ def train(
     run_dir: Optional[Path] = None,
     log_every: int = 10,
     device: Optional[torch.device] = None,
+    resume_from: Optional[Path] = None,
 ) -> tuple[TransformerPolicy, list[dict]]:
+    """If resume_from is given, continues training an existing checkpoint
+    (model + optimizer state) for config.num_iterations *additional*
+    iterations, appending to its training_log.json if one is found next to
+    it -- so the saved log reflects the whole training history, not just
+    this call's slice of it. Entropy annealing (entropy_coef_start ->
+    entropy_coef_end) always runs across just this call's num_iterations."""
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(config.seed)
     np_rng = np.random.default_rng(config.seed)
@@ -213,13 +237,29 @@ def train(
     optimizer = torch.optim.Adam(policy.parameters(), lr=config.lr)
 
     history = []
-    for iteration in range(config.num_iterations):
+    start_iteration = 0
+    if resume_from is not None:
+        checkpoint = torch.load(Path(resume_from), map_location=device)
+        policy.load_state_dict(checkpoint["model_state_dict"])
+        if "optimizer_state_dict" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        log_path = Path(resume_from).parent / "training_log.json"
+        if log_path.exists():
+            with open(log_path) as f:
+                history = json.load(f)
+            start_iteration = len(history)
+
+    for step in range(config.num_iterations):
+        iteration = start_iteration + step
+        progress = step / max(config.num_iterations - 1, 1)
+        entropy_coef = config.entropy_coef_start + (config.entropy_coef_end - config.entropy_coef_start) * progress
+
         task_batch = sample_batch("train", np_rng, config.batch_size, config.num_arms, config.num_trials)
         rollout = collect_rollout(policy, task_batch, device, np_rng)
         advantages, returns = compute_gae(
             rollout.rewards_obtained, rollout.values, config.gamma, config.gae_lambda
         )
-        update_stats = ppo_update(policy, optimizer, rollout, advantages, returns, config)
+        update_stats = ppo_update(policy, optimizer, rollout, advantages, returns, config, entropy_coef)
 
         mean_reward = rollout.rewards_obtained.mean().item()
         mean_regret_first10 = float(rollout.regret[:, :10].mean())
@@ -229,22 +269,28 @@ def train(
             "mean_episode_reward": mean_reward,
             "mean_regret_first10": mean_regret_first10,
             "mean_regret_last10": mean_regret_last10,
+            "entropy_coef": entropy_coef,
             **update_stats,
         }
         history.append(record)
 
-        if log_every and iteration % log_every == 0:
+        if log_every and step % log_every == 0:
             print(
                 f"iter {iteration:5d} | reward {mean_reward:+.3f} | "
                 f"regret[first10] {mean_regret_first10:.3f} -> regret[last10] {mean_regret_last10:.3f} | "
-                f"policy_loss {update_stats['policy_loss']:+.4f} | entropy {update_stats['entropy']:.3f}"
+                f"policy_loss {update_stats['policy_loss']:+.4f} | entropy {update_stats['entropy']:.3f} | "
+                f"entropy_coef {entropy_coef:.4f}"
             )
 
     if run_dir is not None:
         run_dir = Path(run_dir)
         run_dir.mkdir(parents=True, exist_ok=True)
         torch.save(
-            {"model_state_dict": policy.state_dict(), "config": asdict(config)},
+            {
+                "model_state_dict": policy.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "config": asdict(config),
+            },
             run_dir / "checkpoint.pt",
         )
         with open(run_dir / "training_log.json", "w") as f:
@@ -261,6 +307,11 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--run-dir", type=str, default="runs/default")
     parser.add_argument("--quick", action="store_true", help="tiny smoke-test config")
+    parser.add_argument(
+        "--resume-from", type=str, default=None, help="path to an existing checkpoint.pt to continue training"
+    )
+    parser.add_argument("--entropy-coef-start", type=float, default=None)
+    parser.add_argument("--entropy-coef-end", type=float, default=None)
     args = parser.parse_args()
 
     cfg = TrainingConfig(num_iterations=args.iterations, batch_size=args.batch_size)
@@ -276,5 +327,9 @@ if __name__ == "__main__":
             minibatch_size=8,
             ppo_epochs=2,
         )
+    if args.entropy_coef_start is not None:
+        cfg.entropy_coef_start = args.entropy_coef_start
+    if args.entropy_coef_end is not None:
+        cfg.entropy_coef_end = args.entropy_coef_end
 
-    train(cfg, run_dir=Path(args.run_dir))
+    train(cfg, run_dir=Path(args.run_dir), resume_from=args.resume_from)

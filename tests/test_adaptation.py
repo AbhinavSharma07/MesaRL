@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
 
 from eval.adaptation import (
@@ -47,12 +48,27 @@ def test_summarize_regret_on_synthetic_decreasing_curve():
     assert summary["mean_regret_last_n"] == 0.0
     assert summary["improvement_ratio"] == 1.0
     assert summary["mean_cumulative_regret"] == 10.0
+    assert summary["best_trial_regret"] == 0.0
+    assert summary["best_trial_index"] >= 10  # somewhere in the zero-regret half
 
 
 def test_summarize_regret_handles_zero_first_n_gracefully():
     regret = np.zeros((3, 10))
     summary = summarize_regret(regret)
     assert summary["improvement_ratio"] == 0.0
+    assert summary["improvement_ratio_to_best"] == 0.0
+
+
+def test_summarize_regret_detects_mid_episode_dip_and_end_spike():
+    # Mimics the observed shape: regret falls, bottoms out mid-episode, then
+    # rises again near the end -- first_n -> last_n alone would understate
+    # how good the policy got at its best point.
+    curve = np.array([1.0, 0.8, 0.5, 0.3, 0.2, 0.2, 0.3, 0.6, 0.9, 1.0])
+    regret = np.tile(curve, (4, 1))
+    summary = summarize_regret(regret, first_n=2, last_n=2)
+    assert summary["best_trial_index"] in (4, 5)
+    assert summary["best_trial_regret"] == pytest.approx(0.2)
+    assert summary["improvement_ratio_to_best"] > summary["improvement_ratio"]
 
 
 def test_evaluate_adaptation_returns_correct_shape():
