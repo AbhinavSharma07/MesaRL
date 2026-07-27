@@ -1,0 +1,2 @@
+iter     0 | reward -0.021 | regret[first10] 1.105 -> regret[last10] 1.122 | policy_loss -0.0008 | entropy 1.512
+iter    10 | reward -0.030 | regret[first10] 1.150 -> regret[last10] 1.185 | policy_loss -0.0001 | entropy 1.555
