@@ -1,13 +1,9 @@
-"""Shared matplotlib styling for every plot this project produces.
+"""Shared matplotlib styling (validated categorical palette, thin recessive
+chrome) so every plot in this project renders as one consistent system."""
 
-Palette and mark-spec choices follow the project's data-viz conventions
-(validated categorical palette, thin recessive chrome, direct labels over
-legend boxes where there are only 2-3 series). Centralized here so every
-analysis module (adaptation, distribution-shift, algorithm comparison,
-regime-probe, patching) renders as one consistent system rather than
-matplotlib's default look.
-"""
+import matplotlib
 
+matplotlib.use("Agg")  # headless: every plot in this project is saved to a file, never shown interactively
 import matplotlib.pyplot as plt
 
 SURFACE = "#fcfcfb"

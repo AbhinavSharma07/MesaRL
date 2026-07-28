@@ -1,14 +1,6 @@
-"""Compares the trained network's actual per-trial action distribution
-against each hand-designed candidate algorithm (analysis/candidate_algorithms),
-using the SAME realized (action, reward) history for both. This answers
-"which known bandit algorithm does the emergent mesa-optimizer's behavior
-most resemble, and where does it diverge?"
-
-Candidates are evaluated in "shadow" mode: they never drive their own
-trajectory, only predict what they would have done given the network's
-actual realized history -- so a same-trial comparison is meaningful even
-though the candidates never got to act.
-"""
+"""Compares the network's actual per-trial action distribution against each
+candidate algorithm (analysis/candidate_algorithms) on the same realized
+history, via KL divergence and action-agreement rate."""
 
 import json
 from pathlib import Path

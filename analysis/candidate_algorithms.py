@@ -1,29 +1,8 @@
-"""Hand-designed candidate bandit algorithms, used as a reverse-engineering
-reference set for "what known algorithm does the emergent mesa-optimizer
-resemble?" (see analysis/compare.py).
-
-Every candidate is a function of the SAME realized (action, reward) history
-the trained network saw -- not an independent rollout of its own, which
-would diverge onto a different trajectory after the first differing action
-and make a same-trial comparison meaningless. Each candidate returns, for
-every trial t, the probability distribution over arms it would have used to
-pick trial t's action, computed using only the history strictly before t --
-matching the causal information available to the network's policy at that
-point.
-
-None of these candidates are given the task instance's true arm means or its
-true (per-episode) observation-noise standard deviation -- only num_arms and
-an assumed *fixed*, representative noise level (the middle of the training
-range; see env.bandit_family.TRAIN_NOISE_RANGE), matching what the network
-itself can plausibly infer, rather than an information advantage.
-
-The "Thompson sampling" candidate is a standard, near-Bayes-optimal
-posterior-sampling heuristic for Gaussian bandits, NOT literally the exact
-finite-horizon Bayes-optimal policy -- that requires dynamic programming over
-a continuous belief state and is intractable in closed form. Thompson
-Sampling is the standard practical stand-in used for this kind of comparison
-in the meta-RL literature (e.g. Duan et al., 2016, "RL^2").
-"""
+"""Hand-designed candidate bandit algorithms ("what known algorithm does the
+mesa-optimizer resemble?", see analysis/compare.py). Each runs in "shadow"
+mode against the network's realized history rather than its own rollout, and
+none see the task's true arm means or noise std. "Thompson sampling" is a
+near-Bayes-optimal heuristic, not the exact (intractable) Bayes-optimal policy."""
 
 import numpy as np
 

@@ -1,21 +1,9 @@
-"""A small causal Transformer used as the meta-RL policy.
-
-At trial i within an episode, the network's input is the pair (a_{i-1},
-r_{i-1}) -- the action taken and reward received on the *previous* trial (a
-sentinel "no previous action" token is used at i=0). Causal self-attention
-means the network's output at position i depends only on positions <= i, i.e.
-only on the history of (action, reward) pairs from trials 0..i-1 -- exactly
-the information available to a bandit-playing agent deciding trial i's
-action. Weights are shared across every meta-training task instance; any
-in-episode adaptation must therefore come from computation the frozen
-network performs over that history at inference time, not from further
-gradient updates -- this is the emergent mesa-optimizer this project studies.
-
-Kept intentionally small and hand-rolled (rather than nn.TransformerEncoder)
-so later phases can cheaply read out the residual stream and per-head
-attention weights for probing, activation patching, and induction-head
-analysis.
-"""
+"""Causal Transformer meta-RL policy. Input at position i is (a_{i-1},
+r_{i-1}); causal masking means output i depends only on trials 0..i-1, so
+any within-episode adaptation comes from the frozen network's own
+computation, not further gradient updates. Hand-rolled (not
+nn.TransformerEncoder) so later phases can read out the residual stream and
+attention weights for probing/patching."""
 
 from dataclasses import dataclass
 from typing import Optional
@@ -127,17 +115,9 @@ class TransformerPolicy(nn.Module):
         prev_rewards: torch.Tensor,
         return_activations: bool = False,
     ):
-        """
-        prev_actions: (B, L) long, prev_actions[:, 0] == no_prev_action.
-        prev_rewards: (B, L) float, prev_rewards[:, 0] arbitrary (unused
-            information-wise; the sentinel action already marks position 0).
-
-        Returns (policy_logits (B, L, num_arms), value (B, L), activations)
-        where activations is None unless return_activations=True, in which
-        case it's a dict with "resid_per_layer" (list of (B, L, d_model),
-        one per block, taken *after* that block) and "attn_weights_per_layer"
-        (list of (B, n_heads, L, L), one per block).
-        """
+        """prev_actions/prev_rewards: (B, L), position 0 is the sentinel.
+        Returns (policy_logits (B, L, num_arms), value (B, L), activations),
+        activations is None unless return_activations=True."""
         B, L = prev_actions.shape
         if L > self.config.max_trials:
             raise ValueError(

@@ -1,20 +1,9 @@
-"""PPO meta-training for the Transformer bandit policy.
-
-The "base optimizer" here is ordinary PPO, run across thousands of freshly
-sampled bandit task instances (env.bandit_family, mode="train"). The network
-is never told how to explore a new bandit -- it only ever gets gradient
-signal for *cumulative episode reward*. Any within-episode adaptation the
-frozen network exhibits at test time (see eval/adaptation.py) is therefore
-something it had to invent for itself: the emergent mesa-optimizer.
-
-Because CausalSelfAttention masks out future positions, a single forward
-pass over a *completed* episode's full (action, reward) history reproduces,
-at every position, exactly the per-step distribution used to sample that
-position's action during collection -- so PPO's log-prob/value recomputation
-during the update only needs one forward pass per minibatch per epoch, not
-one per timestep. Only *rollout collection* is inherently sequential (each
-action depends on the previous trial's observed reward).
-"""
+"""PPO meta-training for the Transformer bandit policy, run across freshly
+sampled bandit tasks (env.bandit_family, mode="train"). Only cumulative
+episode reward is ever rewarded -- any within-episode adaptation (see
+eval/adaptation.py) is emergent. Causal masking means one forward pass over
+a completed episode reproduces every position's collection-time
+distribution, so only rollout collection needs to be sequential."""
 
 from dataclasses import dataclass, asdict, fields
 import json

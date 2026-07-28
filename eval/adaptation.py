@@ -1,16 +1,7 @@
-"""Frozen-weight adaptation proof.
-
-Loads a trained checkpoint, freezes it, and rolls it out on freshly sampled
-task instances -- since every bandit instance is drawn anew from a
-continuous prior, any batch sampled with a seed never used during training
-is automatically "held out." The question this module answers: does the
-frozen network's regret *decrease* over the course of an episode, with zero
-weight updates? A uniform-random baseline (same task instances, no learning
-of any kind) is evaluated alongside it as the null hypothesis -- regret
-decreasing only for the trained policy, not the random baseline, is the
-direct empirical evidence that the network is running some internal
-learning algorithm at inference time.
-"""
+"""Frozen-weight adaptation proof: does the trained policy's regret decrease
+over an episode with zero weight updates, on freshly sampled (hence
+held-out) tasks? Compared against a uniform-random baseline as the null
+hypothesis."""
 
 import json
 from pathlib import Path
