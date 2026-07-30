@@ -6,6 +6,7 @@ control -- only meaningful if it clears both."""
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import torch
@@ -112,13 +113,39 @@ def _train_val_split(n: int, val_fraction: float, seed: int) -> tuple[np.ndarray
     return idx[n_val:], idx[:n_val]
 
 
+def group_aware_train_val_split(
+    groups: np.ndarray, val_fraction: float, seed: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """Like _train_val_split, but splits by unique group id (e.g. episode)
+    so all samples sharing a group land on the same side -- required
+    whenever samples within a group are correlated (e.g. several trials from
+    one episode), else a probe can key off group identity instead of the
+    real signal and inflate accuracy (including under label shuffling)."""
+    rng = np.random.default_rng(seed)
+    unique_groups = np.unique(groups)
+    shuffled_groups = rng.permutation(unique_groups)
+    n_val_groups = max(1, int(len(unique_groups) * val_fraction))
+    val_groups = set(shuffled_groups[:n_val_groups].tolist())
+    val_mask = np.isin(groups, list(val_groups))
+    all_idx = np.arange(len(groups))
+    return all_idx[~val_mask], all_idx[val_mask]
+
+
 def probe_all_layers(
-    dataset: ProbeDataset, num_classes: int, val_fraction: float = 0.2, seed: int = 0
+    dataset: ProbeDataset,
+    num_classes: int,
+    val_fraction: float = 0.2,
+    seed: int = 0,
+    groups: Optional[np.ndarray] = None,
 ) -> dict:
     """Trains a linear probe on every layer's activations, returning per-
-    layer {"val_accuracy", "majority_baseline_accuracy", "shuffled_label_accuracy"}."""
+    layer {"val_accuracy", "majority_baseline_accuracy", "shuffled_label_accuracy"}.
+    Pass `groups` (e.g. episode id per sample) when samples aren't i.i.d."""
     n = len(dataset.labels)
-    train_idx, val_idx = _train_val_split(n, val_fraction, seed)
+    if groups is not None:
+        train_idx, val_idx = group_aware_train_val_split(groups, val_fraction, seed)
+    else:
+        train_idx, val_idx = _train_val_split(n, val_fraction, seed)
     y_train, y_val = dataset.labels[train_idx], dataset.labels[val_idx]
 
     majority_class = np.bincount(y_train, minlength=num_classes).argmax()

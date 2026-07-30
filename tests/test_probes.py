@@ -7,6 +7,7 @@ from analysis.probes import (
     best_probe_layer,
     collect_probe_dataset,
     fit_probe_for_layer,
+    group_aware_train_val_split,
     probe_all_layers,
 )
 from training.train_meta_rl import TrainingConfig, build_policy
@@ -97,6 +98,40 @@ def test_best_probe_layer_picks_highest_accuracy():
         "layer_2": {"val_accuracy": 0.6},
     }
     assert best_probe_layer(results) == "layer_1"
+
+
+def test_group_aware_split_keeps_all_of_a_groups_samples_together():
+    # 20 groups, 5 samples each -- no group may straddle train/val.
+    groups = np.repeat(np.arange(20), 5)
+    train_idx, val_idx = group_aware_train_val_split(groups, val_fraction=0.2, seed=0)
+    train_groups = set(groups[train_idx].tolist())
+    val_groups = set(groups[val_idx].tolist())
+    assert train_groups.isdisjoint(val_groups)
+    assert len(train_idx) + len(val_idx) == len(groups)
+
+
+def test_group_aware_split_produces_near_chance_shuffled_accuracy_on_correlated_samples():
+    # Simulate the regime-probe failure mode: many correlated samples per
+    # group (episode), group-constant true label, but activations that are
+    # highly similar WITHIN a group (little per-sample information) --
+    # exactly the setting where a naive iid split leaks. Group-aware
+    # splitting must keep the shuffled-label control near chance.
+    rng = np.random.default_rng(0)
+    n_groups = 200
+    samples_per_group = 15
+    num_classes = 2
+    group_labels = rng.integers(0, num_classes, size=n_groups)
+    group_signature = rng.normal(0, 1, size=(n_groups, 8))  # mostly group identity, not class signal
+
+    labels = np.repeat(group_labels, samples_per_group)
+    groups = np.repeat(np.arange(n_groups), samples_per_group)
+    activations = np.repeat(group_signature, samples_per_group, axis=0) + rng.normal(
+        0, 0.01, size=(n_groups * samples_per_group, 8)
+    ).astype(np.float32)
+
+    dataset = ProbeDataset(activations_per_layer=[activations.astype(np.float32)], labels=labels)
+    results = probe_all_layers(dataset, num_classes=num_classes, seed=0, groups=groups)
+    assert results["layer_0"]["shuffled_label_accuracy"] < 0.65
 
 
 def test_fit_probe_for_layer_returns_correct_weight_shape():
