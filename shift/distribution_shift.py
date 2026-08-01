@@ -109,8 +109,10 @@ def run_distribution_shift_eval(
         policy, config, num_episodes=num_episodes, seed=seed + 1, window=shock_window
     )
     shock_at_change = float(shock_curve[shock_window])
-    shock_before = float(np.nanmean(shock_curve[:shock_window]))
-    shock_recovery_tail = float(np.nanmean(shock_curve[-5:]))
+    with np.errstate(invalid="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        shock_before = float(np.nanmean(shock_curve[:shock_window]))
+        shock_recovery_tail = float(np.nanmean(shock_curve[-5:]))
 
     output = {
         "per_mode": summary,
