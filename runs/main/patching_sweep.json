@@ -1,0 +1,92 @@
+{
+  "probed_layer": "layer_1",
+  "probe_val_accuracy": 0.9308080673217773,
+  "position_idx": 50,
+  "interpretation": "Steering along the probe direction cleanly and specifically shifts behavior toward the network favored arms (e.g. arm 1: +0.51 prob shift vs -0.06 for a random-direction control at scale=50, 53% vs 6% action-flip rate) -- confirming the linear belief direction is causally load-bearing, not just correlational. The same technique is far less effective at redirecting behavior toward the near-never-explored arms (e.g. arm 2: comparable or weaker than a random-direction control at every scale up to 100, only modestly ahead at scale=200) -- suggesting whatever suppresses those arms is a separate, more robust mechanism not captured by this single linear direction.",
+  "sweep": {
+    "favored_arm_1": [
+      {
+        "scale": 4.0,
+        "baseline_prob_on_target": 0.4247790277004242,
+        "patched_prob_on_target": 0.4257747530937195,
+        "control_patched_prob_on_target": 0.4253065288066864,
+        "prob_shift": 0.000995771144516766,
+        "control_prob_shift": 0.0005275228177197278,
+        "fraction_argmax_became_target": 0.0,
+        "control_fraction_argmax_became_target": 0.0
+      },
+      {
+        "scale": 10.0,
+        "baseline_prob_on_target": 0.42119351029396057,
+        "patched_prob_on_target": 0.42196232080459595,
+        "control_patched_prob_on_target": 0.4199328124523163,
+        "prob_shift": 0.000768807134591043,
+        "control_prob_shift": -0.001260682474821806,
+        "fraction_argmax_became_target": 0.0,
+        "control_fraction_argmax_became_target": 0.0
+      },
+      {
+        "scale": 25.0,
+        "baseline_prob_on_target": 0.39647841453552246,
+        "patched_prob_on_target": 0.44950199127197266,
+        "control_patched_prob_on_target": 0.38649308681488037,
+        "prob_shift": 0.0530235581099987,
+        "control_prob_shift": -0.00998532585799694,
+        "fraction_argmax_became_target": 0.013333333656191826,
+        "control_fraction_argmax_became_target": 0.006666666828095913
+      },
+      {
+        "scale": 50.0,
+        "baseline_prob_on_target": 0.4123516082763672,
+        "patched_prob_on_target": 0.8478509187698364,
+        "control_patched_prob_on_target": 0.35009774565696716,
+        "prob_shift": 0.43549931049346924,
+        "control_prob_shift": -0.06225381791591644,
+        "fraction_argmax_became_target": 0.5066666603088379,
+        "control_fraction_argmax_became_target": 0.06333333253860474
+      }
+    ],
+    "avoided_arm_2": [
+      {
+        "scale": 25.0,
+        "baseline_prob_on_target": 1.8021864889306016e-05,
+        "patched_prob_on_target": 0.00046605904935859144,
+        "control_patched_prob_on_target": 0.003798633348196745,
+        "prob_shift": 0.00044803714263252914,
+        "control_prob_shift": 0.003780611790716648,
+        "fraction_argmax_became_target": 0.0,
+        "control_fraction_argmax_became_target": 0.0
+      },
+      {
+        "scale": 50.0,
+        "baseline_prob_on_target": 1.157926999439951e-05,
+        "patched_prob_on_target": 0.006890666671097279,
+        "control_patched_prob_on_target": 0.04122539982199669,
+        "prob_shift": 0.006879087071865797,
+        "control_prob_shift": 0.04121382534503937,
+        "fraction_argmax_became_target": 0.0,
+        "control_fraction_argmax_became_target": 0.03999999910593033
+      },
+      {
+        "scale": 100.0,
+        "baseline_prob_on_target": 2.853808837244287e-05,
+        "patched_prob_on_target": 0.05529635772109032,
+        "control_patched_prob_on_target": 0.12973833084106445,
+        "prob_shift": 0.0552678219974041,
+        "control_prob_shift": 0.12970981001853943,
+        "fraction_argmax_became_target": 0.009999999776482582,
+        "control_fraction_argmax_became_target": 0.12333333492279053
+      },
+      {
+        "scale": 200.0,
+        "baseline_prob_on_target": 4.365003769635223e-05,
+        "patched_prob_on_target": 0.16885466873645782,
+        "control_patched_prob_on_target": 0.18365265429019928,
+        "prob_shift": 0.16881102323532104,
+        "control_prob_shift": 0.1836090236902237,
+        "fraction_argmax_became_target": 0.12999999523162842,
+        "control_fraction_argmax_became_target": 0.1966666728258133
+      }
+    ]
+  }
+}

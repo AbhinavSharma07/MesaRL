@@ -1,0 +1,32 @@
+{
+  "probe_results": {
+    "layer_0": {
+      "val_accuracy": 0.809583306312561,
+      "majority_baseline_accuracy": 0.5,
+      "shuffled_label_accuracy": 0.4950000047683716
+    },
+    "layer_1": {
+      "val_accuracy": 0.8554166555404663,
+      "majority_baseline_accuracy": 0.5,
+      "shuffled_label_accuracy": 0.5212500095367432
+    },
+    "layer_2": {
+      "val_accuracy": 0.8516666889190674,
+      "majority_baseline_accuracy": 0.5,
+      "shuffled_label_accuracy": 0.5358333587646484
+    }
+  },
+  "best_layer": "layer_1",
+  "behavior_by_regime": {
+    "regime_low_noise": {
+      "mean_action_entropy": 0.08930882066488266,
+      "mean_distinct_arms_tried": 1.5675
+    },
+    "regime_high_noise": {
+      "mean_action_entropy": 0.08067940175533295,
+      "mean_distinct_arms_tried": 1.6175
+    }
+  },
+  "entropy_gap_high_minus_low": -0.008629418909549713,
+  "distinct_arms_gap_high_minus_low": 0.050000000000000044
+}

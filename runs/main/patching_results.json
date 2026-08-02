@@ -1,0 +1,14 @@
+{
+  "probed_layer": "layer_1",
+  "probe_val_accuracy": 0.9292929172515869,
+  "position_idx": 50,
+  "scale": 6.0,
+  "target_arm": 1,
+  "baseline_prob_on_target": 0.4247790277004242,
+  "patched_prob_on_target": 0.42621856927871704,
+  "control_patched_prob_on_target": 0.425508588552475,
+  "prob_shift": 0.0014395767357200384,
+  "control_prob_shift": 0.0007295965333469212,
+  "fraction_argmax_became_target": 0.0,
+  "control_fraction_argmax_became_target": 0.0
+}

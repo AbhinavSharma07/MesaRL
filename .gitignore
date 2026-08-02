@@ -24,7 +24,10 @@ ENV/
 .pytest_cache/
 .coverage
 
-# Trained models / run artifacts (regenerable via the CLI, kept out of git)
-runs/
+# Trained models / run artifacts (regenerable via the CLI, kept out of git).
+# runs/main is the reference result set discussed in README/PROJECT_DETAILS.md -- kept.
+runs/*
+!runs/main/
 *.pt
 *.pth
+!runs/main/checkpoint.pt

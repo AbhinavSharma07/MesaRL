@@ -1,0 +1,20 @@
+{
+  "best_layer": "layer_1",
+  "layers": {
+    "layer_0": {
+      "val_accuracy": 0.9022727012634277,
+      "majority_baseline_accuracy": 0.5071969696969697,
+      "shuffled_label_accuracy": 0.5077019929885864
+    },
+    "layer_1": {
+      "val_accuracy": 0.915656566619873,
+      "majority_baseline_accuracy": 0.5071969696969697,
+      "shuffled_label_accuracy": 0.5071969628334045
+    },
+    "layer_2": {
+      "val_accuracy": 0.9150252342224121,
+      "majority_baseline_accuracy": 0.5071969696969697,
+      "shuffled_label_accuracy": 0.5070707201957703
+    }
+  }
+}

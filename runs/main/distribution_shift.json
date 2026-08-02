@@ -1,0 +1,46 @@
+{
+  "per_mode": {
+    "train": {
+      "mean_regret_first_n": 0.9847576991567257,
+      "mean_regret_last_n": 0.7497709883465972,
+      "best_trial_index": 64,
+      "best_trial_regret": 0.5533638550110243,
+      "improvement_ratio": 0.2386238878978595,
+      "improvement_ratio_to_best": 0.43807105495607246,
+      "mean_cumulative_regret": 65.89416785060138
+    },
+    "ood_nonstationary": {
+      "mean_regret_first_n": 0.9997189748626172,
+      "mean_regret_last_n": 1.0809290160292884,
+      "best_trial_index": 24,
+      "best_trial_regret": 0.6594724029054915,
+      "improvement_ratio": -0.08123286964502319,
+      "improvement_ratio_to_best": 0.34034221667532405,
+      "mean_cumulative_regret": 89.26394852324557
+    },
+    "ood_correlated": {
+      "mean_regret_first_n": 0.33095974794061783,
+      "mean_regret_last_n": 0.3083916625259527,
+      "best_trial_index": 43,
+      "best_trial_regret": 0.28318479489134774,
+      "improvement_ratio": 0.06818981932121368,
+      "improvement_ratio_to_best": 0.14435275995509303,
+      "mean_cumulative_regret": 29.45889044631843
+    },
+    "ood_wide_prior": {
+      "mean_regret_first_n": 3.5999834581358985,
+      "mean_regret_last_n": 3.469785957803623,
+      "best_trial_index": 80,
+      "best_trial_regret": 2.5544221000122436,
+      "improvement_ratio": 0.03616613849656211,
+      "improvement_ratio_to_best": 0.2904350451279727,
+      "mean_cumulative_regret": 297.0910337209642
+    }
+  },
+  "nonstationary_shock": {
+    "regret_just_before_change": 0.5956876044765721,
+    "regret_at_change": 1.1430447714938787,
+    "regret_recovery_tail": 1.0844126426310565,
+    "recovers_toward_pre_change_level": true
+  }
+}

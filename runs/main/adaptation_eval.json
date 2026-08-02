@@ -1,0 +1,20 @@
+{
+  "trained_policy": {
+    "mean_regret_first_n": 0.9727064889828174,
+    "mean_regret_last_n": 0.76409065147108,
+    "best_trial_index": 70,
+    "best_trial_regret": 0.5703019203590604,
+    "improvement_ratio": 0.2144694621394908,
+    "improvement_ratio_to_best": 0.41369577892356946,
+    "mean_cumulative_regret": 67.2615870960628
+  },
+  "random_baseline": {
+    "mean_regret_first_n": 1.1591453946627321,
+    "mean_regret_last_n": 1.1588503517571354,
+    "best_trial_index": 5,
+    "best_trial_regret": 1.1139836132468566,
+    "improvement_ratio": 0.0002545348555541937,
+    "improvement_ratio_to_best": 0.03896127407642072,
+    "mean_cumulative_regret": 116.31591237472419
+  }
+}
