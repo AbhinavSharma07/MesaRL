@@ -1,3 +1,14 @@
+---
+title: MesaRL
+emoji: 🎰
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 6.22.0
+app_file: app.py
+pinned: false
+---
+
 # MesaRL — Reverse-Engineering an Emergent Mesa-Optimizer
 
 An empirical mesa-optimization research project: meta-train a Transformer via PPO across thousands of randomly sampled multi-armed bandit tasks, show that its frozen weights implement their own in-context learning algorithm at inference time (a real mesa-optimizer, not a metaphor for one), then reverse-engineer that algorithm — what it resembles, where its belief is represented, whether that representation is causally load-bearing, and how it breaks under distribution shift.
