@@ -17,6 +17,22 @@ def test_ingest_metrics_empty_run_dir_returns_empty_dict(tmp_path: Path):
     assert ingest_metrics(tmp_path) == {}
 
 
+def test_ingest_metrics_strips_long_per_trial_curves(tmp_path: Path):
+    long_curve = list(range(100))
+    short_list = [1, 2, 3]
+    (tmp_path / "candidate_comparison.json").write_text(
+        json.dumps({"summary": {"most_similar_candidate": "Epsilon-greedy"}, "mean_kl_per_trial": long_curve})
+    )
+    (tmp_path / "regime_probe.json").write_text(json.dumps({"short_list": short_list}))
+
+    metrics = ingest_metrics(tmp_path)
+
+    assert metrics["candidate_comparison"]["summary"] == {"most_similar_candidate": "Epsilon-greedy"}
+    assert isinstance(metrics["candidate_comparison"]["mean_kl_per_trial"], str)
+    assert "100-point curve" in metrics["candidate_comparison"]["mean_kl_per_trial"]
+    assert metrics["regime_probe"]["short_list"] == short_list  # untouched, below the threshold
+
+
 def test_run_audit_pipeline_with_fake_llm(tmp_path: Path):
     (tmp_path / "adaptation_eval.json").write_text(
         json.dumps({"trained_policy": {"improvement_ratio": 0.2}, "random_baseline": {"improvement_ratio": 0.0}})

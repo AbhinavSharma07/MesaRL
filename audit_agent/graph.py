@@ -30,13 +30,27 @@ METRIC_FILES = [
 ]
 
 
+_MAX_LIST_LEN = 20  # longer lists are per-trial curves, not summary stats -- drop for the LLM prompt
+
+
+def _drop_long_lists(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: _drop_long_lists(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return f"<omitted: {len(obj)}-point curve, see the actual JSON file>" if len(obj) > _MAX_LIST_LEN else obj
+    return obj
+
+
 def ingest_metrics(run_dir: Path) -> Dict[str, Any]:
+    """Per-trial curves (e.g. 100-point KL/regret arrays) are stripped before
+    this reaches the LLM prompt -- they blow past small-model token limits
+    and add nothing a summary stat doesn't already say."""
     run_dir = Path(run_dir)
     metrics = {}
     for filename in METRIC_FILES:
         path = run_dir / filename
         if path.exists():
-            metrics[filename.removesuffix(".json")] = json.loads(path.read_text())
+            metrics[filename.removesuffix(".json")] = _drop_long_lists(json.loads(path.read_text()))
     return metrics
 
 
