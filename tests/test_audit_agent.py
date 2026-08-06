@@ -33,6 +33,15 @@ def test_ingest_metrics_strips_long_per_trial_curves(tmp_path: Path):
     assert metrics["regime_probe"]["short_list"] == short_list  # untouched, below the threshold
 
 
+def test_ingest_metrics_drops_bulky_sweep_field(tmp_path: Path):
+    (tmp_path / "patching_sweep.json").write_text(
+        json.dumps({"interpretation": "the key finding", "sweep": {"favored_arm_1": [{"scale": 4.0}]}})
+    )
+    metrics = ingest_metrics(tmp_path)
+    assert metrics["patching_sweep"]["interpretation"] == "the key finding"
+    assert isinstance(metrics["patching_sweep"]["sweep"], str)
+
+
 def test_run_audit_pipeline_with_fake_llm(tmp_path: Path):
     (tmp_path / "adaptation_eval.json").write_text(
         json.dumps({"trained_policy": {"improvement_ratio": 0.2}, "random_baseline": {"improvement_ratio": 0.0}})

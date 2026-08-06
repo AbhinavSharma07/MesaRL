@@ -13,7 +13,10 @@ a structured Markdown report with these sections:
 avoided arms, the late-episode regret anomaly) if the data supports them.
 
 Only state what the numbers actually support. Do not round a weak or mixed result up to a strong one. \
-If two metrics seem to conflict, say so explicitly rather than picking whichever is more impressive."""
+If two metrics seem to conflict, say so explicitly rather than picking whichever is more impressive.
+
+Be concise: 2-4 sentences per section, one small table only where a table is clearer than prose. \
+The whole report must fit in well under 500 words -- you will not have room to be verbose."""
 
 DRAFT_USER_TEMPLATE = """Here are the metrics collected from run directory `{run_dir}`:
 
@@ -27,7 +30,9 @@ CRITIQUE_SYSTEM_PROMPT = """You are a skeptical reviewer checking an AI-generate
 the raw metrics it was supposed to summarize. For every claim in the draft, check whether the provided \
 JSON actually supports it. List concrete problems: overclaiming, missed caveats, numbers misquoted or \
 misinterpreted, or conclusions stated more confidently than the data warrants. If the draft is already \
-accurate and appropriately cautious, say so plainly instead of inventing issues."""
+accurate and appropriately cautious, say so plainly instead of inventing issues.
+
+Be terse: a short bullet list of problems (or "no problems found"), not prose. Under 150 words."""
 
 CRITIQUE_USER_TEMPLATE = """Metrics:
 ```json
@@ -43,7 +48,11 @@ List the problems (or confirm none)."""
 
 REVISE_SYSTEM_PROMPT = """You are revising an audit report using a reviewer's critique. Produce the \
 final Markdown report: fix every problem the critique raised, keep everything the critique didn't \
-object to, and keep the same section structure as the draft."""
+object to, and keep the same section structure as the draft (all 6 sections, every time -- never drop \
+one for length).
+
+Be concise: 2-4 sentences per section, one small table only where clearer than prose. The whole \
+report must fit in well under 500 words -- an incomplete report missing sections is a failure."""
 
 REVISE_USER_TEMPLATE = """Metrics:
 ```json

@@ -1,10 +1,14 @@
 """Typer CLI tying every MesaRL phase together."""
 
 import json
+import sys
 from pathlib import Path
 from typing import Optional
 
 import typer
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows consoles default to cp1252
 
 app = typer.Typer(help="MesaRL: reverse-engineering an emergent mesa-optimizer via Transformer meta-RL")
 
@@ -115,7 +119,7 @@ def audit(run_dir: str = "runs/main", config_path: str = "config.json"):
     from audit_agent.graph import run_audit
 
     load_dotenv()
-    config = json.loads(Path(config_path).read_text()) if Path(config_path).exists() else {}
+    config = json.loads(Path(config_path).read_text(encoding="utf-8")) if Path(config_path).exists() else {}
     report = run_audit(Path(run_dir), config=config)
     typer.echo(report)
 

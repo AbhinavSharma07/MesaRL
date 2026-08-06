@@ -31,11 +31,15 @@ METRIC_FILES = [
 
 
 _MAX_LIST_LEN = 20  # longer lists are per-trial curves, not summary stats -- drop for the LLM prompt
+_DROP_KEYS = {"sweep"}  # bulky nested detail already summarized elsewhere (e.g. patching_sweep's "interpretation")
 
 
 def _drop_long_lists(obj: Any) -> Any:
     if isinstance(obj, dict):
-        return {k: _drop_long_lists(v) for k, v in obj.items()}
+        return {
+            k: (f"<omitted: see the actual {k} field in the JSON file>" if k in _DROP_KEYS else _drop_long_lists(v))
+            for k, v in obj.items()
+        }
     if isinstance(obj, list):
         return f"<omitted: {len(obj)}-point curve, see the actual JSON file>" if len(obj) > _MAX_LIST_LEN else obj
     return obj
@@ -50,7 +54,7 @@ def ingest_metrics(run_dir: Path) -> Dict[str, Any]:
     for filename in METRIC_FILES:
         path = run_dir / filename
         if path.exists():
-            metrics[filename.removesuffix(".json")] = _drop_long_lists(json.loads(path.read_text()))
+            metrics[filename.removesuffix(".json")] = _drop_long_lists(json.loads(path.read_text(encoding="utf-8")))
     return metrics
 
 
@@ -67,9 +71,16 @@ def ingest_node(state: AuditState) -> AuditState:
     return state
 
 
+DRAFT_MAX_TOKENS = 1200
+CRITIQUE_MAX_TOKENS = 400
+REVISE_MAX_TOKENS = 2500
+
+
 def make_draft_node(llm):
+    bound_llm = llm.bind(max_tokens=DRAFT_MAX_TOKENS)
+
     def draft_node(state: AuditState) -> AuditState:
-        response = llm.invoke([
+        response = bound_llm.invoke([
             ("system", DRAFT_SYSTEM_PROMPT),
             ("user", DRAFT_USER_TEMPLATE.format(
                 run_dir=state.run_dir, metrics_json=json.dumps(state.metrics, indent=2)
@@ -82,8 +93,10 @@ def make_draft_node(llm):
 
 
 def make_critique_node(llm):
+    bound_llm = llm.bind(max_tokens=CRITIQUE_MAX_TOKENS)
+
     def critique_node(state: AuditState) -> AuditState:
-        response = llm.invoke([
+        response = bound_llm.invoke([
             ("system", CRITIQUE_SYSTEM_PROMPT),
             ("user", CRITIQUE_USER_TEMPLATE.format(
                 metrics_json=json.dumps(state.metrics, indent=2), draft_report=state.draft_report
@@ -96,8 +109,10 @@ def make_critique_node(llm):
 
 
 def make_revise_node(llm):
+    bound_llm = llm.bind(max_tokens=REVISE_MAX_TOKENS)
+
     def revise_node(state: AuditState) -> AuditState:
-        response = llm.invoke([
+        response = bound_llm.invoke([
             ("system", REVISE_SYSTEM_PROMPT),
             ("user", REVISE_USER_TEMPLATE.format(
                 metrics_json=json.dumps(state.metrics, indent=2),
@@ -132,7 +147,7 @@ def run_audit(run_dir: Path, llm=None, config: Optional[dict] = None, save: bool
     final_state = app.invoke(AuditState(run_dir=str(run_dir)))
     final_report = final_state.get("final_report") if isinstance(final_state, dict) else final_state.final_report
     if save:
-        (Path(run_dir) / "audit_report.md").write_text(final_report)
+        (Path(run_dir) / "audit_report.md").write_text(final_report, encoding="utf-8")
     return final_report
 
 
@@ -148,6 +163,6 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, default="config.json")
     args = parser.parse_args()
 
-    config = json.loads(Path(args.config).read_text()) if Path(args.config).exists() else {}
+    config = json.loads(Path(args.config).read_text(encoding="utf-8")) if Path(args.config).exists() else {}
     report = run_audit(Path(args.run_dir), config=config)
     print(report)

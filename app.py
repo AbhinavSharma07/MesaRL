@@ -12,7 +12,7 @@ def _load_json(run_dir: str, filename: str) -> str:
     path = Path(run_dir) / filename
     if not path.exists():
         return f"(no {filename} found in {run_dir} -- run the corresponding CLI command first)"
-    return json.dumps(json.loads(path.read_text()), indent=2)
+    return json.dumps(json.loads(path.read_text(encoding="utf-8")), indent=2)
 
 
 def _load_image(run_dir: str, filename: str):
@@ -35,7 +35,7 @@ def load_run(run_dir: str):
         _load_image(run_dir, "regime_probe_accuracy.png"),
         _load_json(run_dir, "regime_probe.json"),
         (
-            (Path(run_dir) / "audit_report.md").read_text()
+            (Path(run_dir) / "audit_report.md").read_text(encoding="utf-8")
             if (Path(run_dir) / "audit_report.md").exists()
             else "(no audit_report.md found -- run `python cli.py audit` first, requires an LLM API key)"
         ),

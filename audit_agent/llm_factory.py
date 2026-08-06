@@ -31,6 +31,10 @@ def build_chat_llm(config: Optional[Dict[str, Any]] = None):
         return ChatOpenAI(
             model=llm_config.get("model", "openai/gpt-oss-120b"),
             temperature=0.2,
+            # Explicit cap: without one, the reserved completion budget counts
+            # against Groq's free-tier TPM limit (8000) alongside the prompt,
+            # and the audit pipeline's later stages carry cumulative context.
+            max_tokens=llm_config.get("max_tokens", 1500),
             api_key=groq_api_key,
             base_url=llm_config.get("base_url", GROQ_BASE_URL),
         )
