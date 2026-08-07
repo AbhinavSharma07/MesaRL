@@ -1,49 +1,50 @@
 {
   "bias_matrix": [
     [
-      0.004318103737280613,
-      -0.03467269962334451,
-      -0.29069791582453397,
-      -0.008075204188576608
+      0.0032599776571325197,
+      -0.033755347245195896,
+      -0.2930939158756269,
+      -0.006764983791632634
     ],
     [
-      -0.018604943860453558,
-      -0.19992696777572005,
-      -0.20114238087488093,
-      -0.01826800869790315
+      -0.019611472495484877,
+      -0.20747085441824056,
+      -0.2023210887008295,
+      -0.02014156152858294
     ],
     [
-      0.04191261323371121,
-      0.011919142077597235,
-      0.029547258412284564,
-      0.013905840209288867
+      0.042511203632010816,
+      0.013928787757278028,
+      0.030405613406599283,
+      0.015283544019237856
     ]
   ],
   "top_candidates": [
     {
       "layer": 2,
       "head": 0,
-      "same_arm_attention_bias": 0.04191261323371121
+      "same_arm_attention_bias": 0.042511203632010816
     },
     {
       "layer": 2,
       "head": 2,
-      "same_arm_attention_bias": 0.029547258412284564
+      "same_arm_attention_bias": 0.030405613406599283
     },
     {
       "layer": 2,
       "head": 3,
-      "same_arm_attention_bias": 0.013905840209288867
+      "same_arm_attention_bias": 0.015283544019237856
     },
     {
       "layer": 2,
       "head": 1,
-      "same_arm_attention_bias": 0.011919142077597235
+      "same_arm_attention_bias": 0.013928787757278028
     },
     {
       "layer": 0,
       "head": 0,
-      "same_arm_attention_bias": 0.004318103737280613
+      "same_arm_attention_bias": 0.0032599776571325197
     }
-  ]
+  ],
+  "interpretation": "Top 5 same-arm-attention-bias candidates: 4 of 5 are in layer 2, the rest in layer(s) [0]. Max positive bias is 0.043, weak in absolute terms. By contrast, layers [0, 1] show NEGATIVE same-arm bias for at least one head, most negative at layer 0 head 2 (-0.293) -- heads there attend MORE to different-arm positions, the opposite of an induction-head pattern. No clear induction-head circuit was found; the negative bias is larger in magnitude than any positive bias."
 }

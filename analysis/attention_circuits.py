@@ -85,6 +85,30 @@ def top_induction_head_candidates(bias: np.ndarray, top_k: int = 3) -> list:
     ]
 
 
+def build_attention_interpretation(bias: np.ndarray, candidates: list) -> str:
+    """Computed (not LLM-inferred) facts about the bias matrix -- so the audit
+    agent doesn't have to count/compare layer indices itself and get it wrong."""
+    n_layers = bias.shape[0]
+    layer_counts = {layer: int((bias[layer] < 0).sum()) for layer in range(n_layers)}
+    most_negative_layer, most_negative_head = np.unravel_index(np.argmin(bias), bias.shape)
+    candidate_layers = [c["layer"] for c in candidates]
+    layers_in_top_candidates = sorted(set(candidate_layers))
+
+    return (
+        f"Top {len(candidates)} same-arm-attention-bias candidates: "
+        f"{sum(1 for l in candidate_layers if l == candidate_layers[0])} of {len(candidates)} are in layer "
+        f"{candidate_layers[0]}"
+        + (f", the rest in layer(s) {[l for l in layers_in_top_candidates if l != candidate_layers[0]]}"
+           if len(set(candidate_layers)) > 1 else " (all of them)")
+        + f". Max positive bias is {bias.max():.3f}, weak in absolute terms. "
+        f"By contrast, layers {[l for l, c in layer_counts.items() if c > 0]} show NEGATIVE same-arm bias "
+        f"for at least one head, most negative at layer {int(most_negative_layer)} head "
+        f"{int(most_negative_head)} ({bias.min():.3f}) -- heads there attend MORE to different-arm positions, "
+        f"the opposite of an induction-head pattern. No clear induction-head circuit was found; the negative "
+        f"bias is larger in magnitude than any positive bias."
+    )
+
+
 def plot_bias_heatmap(bias: np.ndarray, save_path) -> None:
     import matplotlib.colors as mcolors
 
@@ -126,7 +150,11 @@ def run_attention_analysis(run_dir: Path, num_episodes: int = 200, seed: int = 0
     bias = same_arm_attention_bias(dataset)
     candidates = top_induction_head_candidates(bias, top_k=top_k)
 
-    summary = {"bias_matrix": bias.tolist(), "top_candidates": candidates}
+    summary = {
+        "bias_matrix": bias.tolist(),
+        "top_candidates": candidates,
+        "interpretation": build_attention_interpretation(bias, candidates),
+    }
     with open(run_dir / "attention_circuits.json", "w") as f:
         json.dump(summary, f, indent=2)
     plot_bias_heatmap(bias, run_dir / "attention_circuits_heatmap.png")

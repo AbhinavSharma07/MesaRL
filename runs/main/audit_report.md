@@ -1,12 +1,44 @@
-# Audit Report – `runs\main`
+## 1. Does it adapt?  
+|                | First N regret | Last N regret | Improvement ratio |
+|----------------|----------------|---------------|-------------------|
+| **Trained policy** | 0.9727 | 0.7641 | **0.214** (≈ 21 pp drop) |
+| Random baseline   | 1.1591 | 1.1589 | 0.00025 (flat) |
 
-| Section | Summary |
-|---|---|
-| **1. Does it adapt?** | The frozen‑weight policy lowers mean regret from 0.97 (first N) to 0.76 (last N), a 21 % improvement, while the random baseline stays around 1.16. Cumulative regret is 67.3 vs 116.3 for random, showing modest but genuine adaptation. |
-| **2. What algorithm does it resemble?** | ε‑greedy is the closest match (KL ≈ 2.82, agreement ≈ 0.74). The other candidates are farther in KL and agreement. |
-| **3. Mechanistic findings** | • **Belief probe** – layer 1 attains 0.916 validation accuracy, far above the 0.507 majority baseline and shuffled‑label control, indicating a true internal belief signal. <br>• **Activation patching** – nudging the probe direction at scale 6 raises the target‑arm probability by +0.00144 (control +0.00073) without changing the arg‑max, confirming a causal but weak load‑bearing direction. <br>• **Patch sweep** – the same linear direction consistently boosts already‑favored arms (≈ +0.5 % at large scale) while having negligible effect on rarely‑chosen arms, suggesting a separate suppression mechanism. |
-| **4. Distribution shift** | • **In‑distribution**: improvement ratio 0.24, cumulative regret ≈ 66. <br>• **Non‑stationary OOD**: regret rises (≈ 1.00 → 1.08), improvement ratio ‑0.08, cumulative regret ≈ 89; a shock spikes regret to 1.14 before partial recovery. <br>• **Correlated OOD**: regret ≈ 0.33 with a modest improvement ratio 0.07, cumulative regret ≈ 29. <br>• **Wide‑prior OOD**: regret explodes to ≈ 3.6, improvement ratio 0.04, cumulative regret ≈ 297. The policy adapts only under mild correlated shifts and degrades under non‑stationarity or large prior changes. |
-| **5. Regime probe** | Layer 1 again yields the highest probe accuracy (0.855) and modestly higher shuffled‑label accuracy (0.521) than lower layers, confirming its relevance across regimes. Entropy is slightly lower in high‑noise (0.0807) than low‑noise (0.0893), giving an entropy gap of –0.0086, while the high‑noise regime tries marginally more distinct arms (+0.05). |
-| **6. Attention circuits** | The bias matrix shows small positive same‑arm biases, with the strongest in layer 2, head 0 (0.042). The top five heads all belong to layer 2 and collectively exhibit modest reinforcement of the currently selected arm. |
+The transformer’s regret declines noticeably across the episode, while the frozen random baseline stays constant, confirming genuine on‑policy adaptation.
 
-*All six sections are retained, each limited to 2–4 concise sentences, and the report stays well under 500 words.*
+---
+
+## 2. What algorithm does it resemble?  
+KL‑divergence and action‑agreement place **ε‑greedy** closest to the learned policy (KL ≈ 2.82, agreement ≈ 0.74).  
+
+| Candidate | Mean KL | Action‑agreement |
+|-----------|---------|------------------|
+| ε‑greedy | 2.82 | 0.737 |
+| Win‑stay‑lose‑shift | 3.34 | 0.631 |
+| Thompson sampling | 6.21 | 0.534 |
+| UCB1 | 12.81 | 0.001 |
+
+---
+
+## 3. Mechanistic findings  
+* **Belief probe:** Layer 1 reaches 0.916 validation accuracy, far above the 0.507 majority baseline and comparable to shuffled‑label performance, indicating a meaningful internal signal.  
+* **Activation patching:** Steering the probe direction at scale 6 raises the probability of the favored arm 1 by 0.00144 (vs. 0.00073 for a random direction) without any argmax flips, showing a modest but specific effect.  
+* **Patching sweep:** The linear direction consistently nudges probabilities toward already‑favored arms (≈ +0.51 pp at high scale) but does not revive rarely‑explored arms, suggesting a separate suppression mechanism.  
+* **Attention circuits:** Same‑arm attention bias is weak (max +0.043) and positive in only four of the top‑5 heads (all in layer 2); a much larger negative bias (‑0.293) appears in layer 0 head 2, providing no evidence for a classic induction‑head pattern.
+
+---
+
+## 4. Distribution shift  
+* **Non‑stationary OOD:** Regret climbs from ≈ 1.00 to ≈ 1.08, yielding a negative improvement ratio (‑0.081) and cumulative regret ≈ 89, with a shock‑induced spike to 1.14 that later recovers toward the pre‑change level.  
+* **Correlated OOD:** Regret stays low (≈ 0.33) and improves modestly (ratio ≈ 0.068), indicating robustness to correlated shifts.  
+* **Wide‑prior OOD:** Regret is high (≈ 3.60) but still shows a slight positive trend (ratio ≈ 0.036). Overall, the policy degrades under non‑stationarity and extreme priors yet retains learning signals in milder shifts.
+
+---
+
+## 5. Regime probe  
+Layer 1 is the most informative probe (validation accuracy ≈ 0.855), outperforming layers 0 and 2. Entropy is slightly lower in the high‑noise regime (0.0807 vs. 0.0893), and the policy tries marginally more distinct arms there (+0.05), suggesting noise modestly encourages exploration.
+
+---
+
+## 6. Overall assessment  
+The transformer exhibits genuine adaptation, behaves most like an ε‑greedy learner, and contains a detectable belief signal in layer 1. Mechanistic analyses reveal a linear, load‑bearing direction that influences already‑favored actions but not suppressed ones, and attention patterns lack a clear induction‑head signature. Performance remains solid under correlated shifts but deteriorates with non‑stationarity and extreme prior changes, highlighting avenues for improving robustness.

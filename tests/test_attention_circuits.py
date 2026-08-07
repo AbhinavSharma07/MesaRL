@@ -2,6 +2,7 @@ import numpy as np
 
 from analysis.attention_circuits import (
     AttentionDataset,
+    build_attention_interpretation,
     collect_attention_dataset,
     same_arm_attention_bias,
     top_induction_head_candidates,
@@ -81,3 +82,22 @@ def test_same_arm_attention_bias_returns_zero_when_no_history_matches():
     dataset = AttentionDataset(attn_weights_per_layer=[attn], hist_actions=hist_actions, actions_taken=actions_taken)
     bias = same_arm_attention_bias(dataset, min_query_position=1)
     assert np.allclose(bias, 0.0)
+
+
+def test_build_attention_interpretation_reports_correct_layer_breakdown_and_extremum():
+    # Reproduces the real run's shape: layer 2 dominates the positive top-k,
+    # but layers 0-1 have the largest-magnitude bias, and it's negative.
+    bias = np.array(
+        [
+            [0.004, -0.035, -0.291, -0.008],
+            [-0.019, -0.200, -0.201, -0.018],
+            [0.042, 0.012, 0.030, 0.014],
+        ]
+    )
+    candidates = top_induction_head_candidates(bias, top_k=5)
+    text = build_attention_interpretation(bias, candidates)
+
+    assert "4 of 5 are in layer 2" in text
+    assert "layer(s) [0]" in text
+    assert "layer 0 head 2" in text  # the true global minimum, not a top-candidate layer
+    assert "No clear induction-head circuit" in text

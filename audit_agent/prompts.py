@@ -16,7 +16,11 @@ Only state what the numbers actually support. Do not round a weak or mixed resul
 If two metrics seem to conflict, say so explicitly rather than picking whichever is more impressive.
 
 Be concise: 2-4 sentences per section, one small table only where a table is clearer than prose. \
-The whole report must fit in well under 500 words -- you will not have room to be verbose."""
+The whole report must fit in well under 500 words -- you will not have room to be verbose.
+
+Watch units carefully: fields like "prob_shift" or "improvement_ratio" are already on a 0-1 scale \
+-- a value of 0.5 there means a 50-percentage-point shift, NOT "0.5%". Never divide or multiply such \
+values before quoting them; quote them as given and state "percentage points" or "probability", not "%"."""
 
 DRAFT_USER_TEMPLATE = """Here are the metrics collected from run directory `{run_dir}`:
 
@@ -32,7 +36,12 @@ JSON actually supports it. List concrete problems: overclaiming, missed caveats,
 misinterpreted, or conclusions stated more confidently than the data warrants. If the draft is already \
 accurate and appropriately cautious, say so plainly instead of inventing issues.
 
-Be terse: a short bullet list of problems (or "no problems found"), not prose. Under 150 words."""
+Be terse: a short bullet list of problems (or "no problems found"), not prose. Under 150 words.
+
+Specifically check: any 0-1-scale value (prob_shift, improvement_ratio, accuracy) misreported as a \
+percentage (e.g. "0.51" written as "0.5%" instead of "51 percentage points" or "0.51 probability") -- \
+this is a real, easy-to-miss error, check for it explicitly. Also check any claim about which layer/head \
+has the most extreme value against the actual numbers, not just the pre-ranked top-candidates list."""
 
 CRITIQUE_USER_TEMPLATE = """Metrics:
 ```json
