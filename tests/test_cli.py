@@ -35,6 +35,16 @@ def test_help_lists_every_command():
         assert command in result.stdout
 
 
+def test_train_command_respects_seed_and_saves_checkpoint(tmp_path: Path):
+    run_dir = tmp_path / "run"
+    result = runner.invoke(app, ["train", "--quick", "--seed", "7", "--run-dir", str(run_dir)])
+    assert result.exit_code == 0, result.output
+    assert (run_dir / "checkpoint.pt").exists()
+
+    checkpoint = torch.load(run_dir / "checkpoint.pt", map_location="cpu")
+    assert checkpoint["config"]["seed"] == 7
+
+
 def test_evaluate_command(tmp_path: Path):
     run_dir = tmp_path / "run"
     make_checkpoint(run_dir)

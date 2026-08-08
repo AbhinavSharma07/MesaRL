@@ -25,16 +25,17 @@ def train(
     resume_from: Optional[str] = None,
     entropy_coef_start: Optional[float] = None,
     entropy_coef_end: Optional[float] = None,
+    seed: int = 0,
     quick: bool = False,
 ):
     """Meta-train the Transformer bandit policy via PPO."""
     from training.train_meta_rl import TrainingConfig, train as train_fn
 
-    config = TrainingConfig(num_iterations=iterations, batch_size=batch_size)
+    config = TrainingConfig(num_iterations=iterations, batch_size=batch_size, seed=seed)
     if quick:
         config = TrainingConfig(
             num_iterations=5, batch_size=16, num_trials=20, d_model=16, n_heads=2,
-            n_layers=2, d_ff=32, minibatch_size=8, ppo_epochs=2,
+            n_layers=2, d_ff=32, minibatch_size=8, ppo_epochs=2, seed=seed,
         )
     if entropy_coef_start is not None:
         config.entropy_coef_start = entropy_coef_start

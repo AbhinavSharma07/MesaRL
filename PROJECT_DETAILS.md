@@ -1,8 +1,8 @@
 # Project Details: MesaRL
 
-## 0. Status: Feature-complete, single trained checkpoint analyzed
+## 0. Status: Feature-complete, robustness-checked across 3 seeds
 
-Every phase below (train, evaluate, compare, probe, patch, attention-circuit search, distribution shift, regime probe, audit agent, CLI, dashboard) is implemented and tested (90 tests). Findings describe one trained checkpoint (`runs/main`, committed for inspection/reproducibility), not a claim about meta-RL transformers in general.
+Every phase below (train, evaluate, compare, probe, patch, attention-circuit search, distribution shift, regime probe, audit agent, CLI, dashboard) is implemented and tested (94 tests). Headline findings are from `runs/main` (committed for inspection/reproducibility); §4 reports which of them replicate across 2 additional independently-trained seeds (`runs/seed1`, `runs/seed2`, not committed — retrain with `python cli.py train --seed 1`/`2`).
 
 ## 1. Motivation and background
 
@@ -62,17 +62,53 @@ See the README's [Key findings](README.md#key-findings) for the headline numbers
 | Regime probe | 85% decodable (layer 1) vs. ~50% control; entropy/diversity gap between regimes: negligible |
 | Arm-identity bias | Two of five arms played ~0.005% / ~0.13% of the time; two favorites ~44% / ~32% |
 
-## 4. Notable debugging story: train/val leakage in the regime probe
+## 4. Robustness across seeds
+
+`runs/main` used a messy two-phase recipe (500 iterations at a static entropy coefficient, discovered not to adapt at all, then resumed for 1200 more with entropy annealing added — see §5.2). To check what actually generalizes, `runs/seed1` and `runs/seed2` were trained from scratch with a clean single-phase anneal (`entropy_coef_start=0.02` → `entropy_coef_end=0.0005` over the full 1700 iterations, `--seed 1`/`--seed 2`), and all 7 analyses re-run against each via `python cli.py all --run-dir runs/seedN`.
+
+| Analysis | main | seed1 | seed2 |
+|---|---|---|---|
+| Cumulative regret (adaptation) | 67.3 | 31.1 | 53.3 |
+| Improvement-to-best | 41.4% | 68.4% | 52.6% |
+| Closest candidate algorithm | Epsilon-greedy | Epsilon-greedy | Win-stay-lose-shift |
+| UCB1 agreement (always worst) | 0.1% | 5.7% | 0.7% |
+| Belief-probe accuracy (best layer) | 91.6% | 88.1% | 83.2% |
+| Belief-probe majority/shuffled baseline | 50.7% / 50.7% | 25.5% / 25.4% | 27.1% / 25.9% |
+| Patching: prob_shift vs. control (default scale) | 0.0014 vs 0.0007 | 0.0784 vs 0.0035 | 0.0246 vs -0.0016 |
+| Peak same-arm attention bias | 0.043 (layer 2) | 0.041 (layer 1) | 0.035 (layer 2) |
+| Distribution-shift ordering | correlated (29.5) < train (65.9) < non-stat (89.3) < wide-prior (297.1) | 21.6 < 29.0 < 62.3 < 209.9 | 27.6 < 51.3 < 73.0 < 250.3 |
+| Non-stationary shock (before → at-change → recovery) | 0.60 → 1.14 → 1.08 | 0.21 → 1.18 → 1.01 | 0.40 → 1.18 → 1.00 |
+| Regime-probe accuracy | 85.5% | 80.8% | 82.5% |
+| Regime-probe entropy gap (high − low noise) | -0.0086 | -0.0124 | -0.0574 |
+| Regime-probe distinct-arms gap | +0.0500 | -0.1850 | -0.0150 |
+| Action frequency (arms 0-4) | 22.5/45.5/0.01/32.0/0.04 % | 19.3/15.8/24.1/20.9/19.8 % | 2.8/23.9/30.2/23.3/19.9 % |
+
+**Robust (holds in all 3 seeds):** adaptation always occurs (magnitude varies 2x+); UCB1 is always the worst-matching candidate; belief is always strongly linearly decodable (always far above that seed's own baseline); the causal steering effect always beats its control; attention bias is always weak (~0.03-0.04, no real induction head); the distribution-shift ordering and the shock/incomplete-recovery pattern always hold; regime-probe decodability and its entropy-gap *direction* always hold.
+
+**Not robust (seed/recipe-specific):** the exact closest-candidate identity (epsilon-greedy vs. win-stay-lose-shift — both simple exploit-heavy heuristics, so this is a soft distinction anyway); the regime-probe's distinct-arms-tried gap (sign flips: +0.05, -0.19, -0.02); and most importantly, **the severe arm-identity bias** — `main`'s near-total abandonment of two arms is specific to its flawed two-phase training recipe, not the architecture or task. `seed1`, trained with a clean anneal from the start, shows almost no bias at all and consequently the *best* adaptation of the three — evidence that the bias was actively hurting performance, not a neutral quirk.
+
+## 5. Notable debugging stories
+
+### 5.1 Train/val leakage in the regime probe
 
 The first regime-probe run showed a shuffled-label control at 58-65% accuracy — it should sit at chance (~50%). Root cause: with only a 15-trial window, many samples per episode are highly correlated, and the original per-sample train/val split let same-episode samples land on both sides, so a probe could key off "which episode is this" rather than genuine regime signal — and since val samples share their true label with same-episode train samples, this inflated accuracy even under label shuffling. Fixed by adding `group_aware_train_val_split` to `analysis/probes.py` (groups by episode id), verified with a synthetic test that reproduces the failure mode and confirms the fix. The *real* probe accuracy barely moved (83.8% → 85.5%) — the original signal was genuine; only the control was broken.
 
-## 5. Known limitations
+### 5.2 Getting the audit agent to actually run
 
-See the README's [Known limitations](README.md#known-limitations) section — repeated here for completeness: the late-episode regret anomaly (likely a PPO/GAE boundary artifact), the arm-identity bias, the non-comparability of absolute regret across distribution-shift modes with different arm-mean spread, the audit agent being untested against a real LLM in this build environment, and the single-seed/single-checkpoint scope of every finding.
+Running `audit_agent/` against a real LLM (Groq free tier) surfaced a chain of real issues, fixed one at a time rather than papered over:
 
-## 6. Possible extensions
+1. **413 request-too-large.** The draft prompt (all 8 JSON result files, verbatim) exceeded Groq's 8000 TPM free-tier limit. Fixed by stripping per-trial arrays (>20 elements) and the bulky `patching_sweep` field before they reach the prompt (`analysis/probes.py`'s style of trimming, applied in `audit_agent/graph.py`).
+2. **Still too large at the critique/revise stages**, which carry cumulative context (metrics + draft, then + critique). Root cause: no explicit `max_tokens` cap meant a large default completion budget was reserved against the same per-minute limit. Fixed with per-stage token budgets (draft 1200, critique 400, revise 2500) via LangChain's `.bind(max_tokens=...)`, plus explicit word-count instructions in the prompts.
+3. **`UnicodeEncodeError` on Windows** writing/reading the report and echoing it to the console — Windows defaults to `cp1252`, and the LLM's output contained Unicode punctuation (en/em dashes, non-breaking hyphens). Fixed by forcing `encoding="utf-8"` on every read/write of LLM-authored text, and reconfiguring stdout in `cli.py`.
+4. **Real inaccuracies survived the critique stage.** An early successful run mistranscribed a 0.51 probability shift as "0.5%" (misreading a 0-1 probability delta as a percentage) and miscounted "top 5" attention heads as "all layer 2" when only 4 of 5 were. Neither is random noise — both are systematic small-model-under-tight-budget failure modes. Fixed two ways: (a) `analysis/attention_circuits.py` now computes a correct, pre-verified interpretation string (`build_attention_interpretation`) instead of making the LLM count/compare raw numbers itself, and (b) the draft/critique prompts explicitly warn about 0-1-scale values being misread as percentages. Re-running after both fixes produced a report with no factual errors found on manual line-by-line verification against the source JSON.
+
+## 6. Known limitations
+
+See the README's [Known limitations](README.md#known-limitations) section — repeated here for completeness: the late-episode regret anomaly (likely a PPO/GAE boundary artifact, present in all 3 seeds), the non-comparability of absolute regret across distribution-shift modes with different arm-mean spread, and the fact that 3 seeds is a first-pass robustness check, not a statistical guarantee.
+
+## 7. Possible extensions
 
 - Root-cause the late-episode regret anomaly directly (e.g. compare GAE with vs. without a bootstrapped terminal value).
-- Retrain with an entropy floor instead of full annealing to test whether the arm-identity bias is avoidable.
+- Run more seeds to firm up the robust/not-robust split in §4 with a larger sample.
 - Extend the candidate-algorithm set with a true finite-horizon-optimal (dynamic-programming) policy for small arm counts, as a stronger ceiling than Thompson sampling.
-- Repeat the whole pipeline across multiple seeds to check how much of each finding is seed-specific vs. robust.
+- Speed up rollout collection with a KV-cache for the Transformer's incremental decoding — every rollout currently recomputes the full growing sequence from scratch each trial, which is why each seed took ~2.5-4 hours to train.

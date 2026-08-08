@@ -32,15 +32,38 @@ All numbers below are from the trained checkpoint committed in `runs/main` (insp
 
 **6. A train/deploy-regime signal can arise, but isn't obviously used.** A linear probe decodes "is this a training-like or a never-seen high-noise episode" from just the first 15 trials at **~85% accuracy** — a real, byproduct-of-training signal distinguishing "regimes." But behavior barely differs between regimes (action-entropy gap: -0.009, distinct-arms-tried gap: +0.05) — the signal exists, but this model doesn't appear to act on it. A cautious, non-overclaiming answer to the toy deceptive-alignment-precursor question this experiment was designed to ask.
 
-**7. A genuine, uninstructed bias.** The policy almost never plays two of its five arms (~0.005% and ~0.13% of all actions, vs. ~44% and ~32% for its two favorites) — despite arm identity being reassigned randomly every episode, so no arm index is inherently better. This is very likely why overall regret reduction tops out around 42% rather than something closer to optimal.
+**7. A genuine bias — but training-recipe-specific, not fundamental.** In this checkpoint, the policy almost never plays two of its five arms (~0.005% and ~0.13% of all actions, vs. ~44% and ~32% for its two favorites) despite arm identity being reassigned randomly every episode. A multi-seed check (below) shows this does **not** replicate with cleaner training — an artifact of this run's training recipe, not the architecture or task.
+
+## Robustness across seeds
+
+Every finding above is from one trained checkpoint. To check what actually generalizes, two more checkpoints were trained from scratch (different seeds, same architecture, a cleaner single-phase entropy anneal — see [PROJECT_DETAILS.md](PROJECT_DETAILS.md) for why the original recipe needed fixing), with all 7 analyses re-run against each.
+
+**Replicates robustly across all 3 seeds:**
+- Genuine within-episode adaptation always happens (cumulative regret 31-67 vs. ~114-116 for random, improvement-to-best 41-68%) — though the *degree* varies more than 2x by seed.
+- Definitely not UCB1-like (KL 6.8-12.8, agreement ≤5.7%) in every seed — the specific "closest match" flips between epsilon-greedy and win-stay-lose-shift, but ruling out UCB1 is robust.
+- Strong linear belief decodability (83-92% accuracy, always far above that seed's own baseline/shuffled control).
+- The causal steering effect beats a random-direction control in all 3 seeds at default settings.
+- A weak, not-a-real-induction-head attention bias (~0.03-0.04 peak) in all 3 seeds — the specific head is seed-dependent.
+- The full distribution-shift ordering (correlated < train < non-stationary < wide-prior) and the shock-then-incomplete-recovery pattern, in all 3 seeds.
+- The regime-probe's decodability (81-86%) and its entropy-gap *direction* (always slightly negative — more exploitative under high noise).
+
+**Does not replicate — seed/training-recipe-specific:**
+- **The severe arm-identity bias (finding 7).** `main`'s near-total abandonment of two arms was specific to its messier two-phase training recipe (500 static-entropy iterations, then resumed annealing) — a cleanly-trained seed shows almost no bias at all:
+
+  | Seed | Arm 0 | Arm 1 | Arm 2 | Arm 3 | Arm 4 |
+  |---|---|---|---|---|---|
+  | main | 22.5% | 45.5% | 0.01% | 32.0% | 0.04% |
+  | seed1 | 19.3% | 15.8% | 24.1% | 20.9% | 19.8% |
+  | seed2 | 2.8% | 23.9% | 30.2% | 23.3% | 19.9% |
+
+  This also explains why seed1 shows the strongest adaptation of the three (68% improvement-to-best) — a policy that explores fairly finds the true best arm more often.
+- The regime-probe's distinct-arms-tried gap flips sign across seeds (+0.05, -0.19, -0.02) — not a real effect, don't read anything into it.
 
 ## Known limitations
 
-- **The late-episode regret anomaly.** Regret reliably spikes back up in the last ~15-20 trials of every episode (visible in the plot above, and even more dramatically under a wide-prior shift). Most likely a PPO/GAE boundary artifact (no bootstrapped value past the final trial), not something the task itself demands — not root-caused further here.
-- **Arm-identity bias.** See finding 7 above; a consequence is that whenever the true best arm happens to be one of the two avoided arms, the policy likely never finds it.
+- **The late-episode regret anomaly.** Regret reliably spikes back up in the last ~15-20 trials of every episode (visible in the plot above, and even more dramatically under a wide-prior shift), in all 3 seeds. Most likely a PPO/GAE boundary artifact (no bootstrapped value past the final trial), not something the task itself demands — not root-caused further here.
 - **Absolute regret isn't comparable across distribution-shift modes.** `ood_correlated` and `ood_wide_prior` change the underlying arm-mean spread, which changes the scale of *possible* regret independent of policy quality — see `shift/distribution_shift.py` and use the *relative* improvement-ratio metrics for cross-mode comparison.
-- **The audit agent is untested end-to-end with a real LLM** in this environment (no API key available at build time) — the LangGraph pipeline (draft → critique → revise) is verified with a mock LLM; see [Reproducing](#reproducing) to run it for real.
-- This is a toy, single-seed study (one trained checkpoint). Findings above describe this run, not a claim about meta-RL transformers in general.
+- **Only 3 seeds.** The robustness check above separates "replicates" from "doesn't" reasonably well, but 3 is not a large sample — treat it as a first-pass sanity check, not a statistical guarantee.
 
 ## Technology stack
 
@@ -95,7 +118,10 @@ Alternative backends: set `llm_backend.provider` in `config.json` to `"openai"` 
 
 ```bash
 # Train from scratch (or --resume-from an existing checkpoint.pt)
-python cli.py train --iterations 500 --run-dir runs/main
+python cli.py train --iterations 1700 --entropy-coef-start 0.02 --entropy-coef-end 0.0005 --run-dir runs/main
+
+# Train an additional seed for a robustness check (see "Robustness across seeds" above)
+python cli.py train --iterations 1700 --entropy-coef-start 0.02 --entropy-coef-end 0.0005 --seed 1 --run-dir runs/seed1
 
 # Run every analysis phase against a trained checkpoint
 python cli.py all --run-dir runs/main
